@@ -3064,4 +3064,35 @@ body::-webkit-scrollbar-thumb:hover {
 .dark .chat-interface[class*='theme-'] .chat-body {
   background: rgba(0, 0, 0, 0.3);
 }
+
+.main-page {
+  min-height: 100vh;
+  width: 100%;
+  background: white;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color: black;
+  overflow-x: hidden;
+}
+
+:deep(html), :deep(body), :deep(#app) {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(to bottom right, #fef3f3, #ffe6e6); /* bu sening orqa fon rang dizayning */
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Bu sahifalarga beriladi */
+.main-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: transparent; /* Orqa fon parentdan oladi */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact; /* Standart nomi (modern brauzerlar uchun) */
+}
 </style>

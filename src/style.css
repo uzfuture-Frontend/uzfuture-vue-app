@@ -2,10 +2,10 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+
+  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, #ffd8a6 0%, #ffa45c 100%); /* YANGI: Peach → Neon sabzi */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,26 +13,34 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #ffe082;
   text-decoration: inherit;
+  transition: color 0.2s ease;
 }
 a:hover {
-  color: #535bf2;
+  color: #ffcc4d;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%;
+  background: inherit;
+  color: inherit;
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+  margin: 0.5em 0;
 }
 
 button {
@@ -42,12 +50,14 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: rgba(255, 255, 255, 0.3);
+  color: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #ffe082;
+  background-color: rgba(255, 255, 255, 0.4);
 }
 button:focus,
 button:focus-visible {
@@ -56,24 +66,46 @@ button:focus-visible {
 
 .card {
   padding: 2em;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  text-align: initial;
+  background: inherit;
 }
 
+/* Light mode – tiniq apelsin gradient */
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: #1c1c1c;
+    background: linear-gradient(135deg, #26a69a 0%, #b2dfdb 100%); /* Yumshoq ko‘k-yashil → och yashil */
+  }
+
+  a {
+    color: #00695c; /* Quyqroq teal: fon bilan mos */
   }
   a:hover {
-    color: #747bff;
+    color: #004d40; /* Yanada qoraroq teal */
   }
+
   button {
-    background-color: #f9f9f9;
+    background-color: rgba(38, 166, 154, 0.1); /* Teal asosidagi shaffof fon */
+    color: #1c1c1c;
+  }
+  button:hover {
+    border-color: #00695c;
+    background-color: rgba(38, 166, 154, 0.2);
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.97);
+    color: #1c1c1c;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
 }
