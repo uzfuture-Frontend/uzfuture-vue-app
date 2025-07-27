@@ -340,6 +340,9 @@
 
 <script>
 import { ref, reactive, computed, nextTick, onMounted } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
+import axios from 'axios';
+
 
 export default {
   name: 'AIUniverse',
@@ -1160,29 +1163,33 @@ export default {
 
       scrollToBottom();
 
-      setTimeout(() => {
-        const aiResponse = generateAdvancedResponse(
-          questionToProcess,
-          selectedAI.value
+      try {
+        const response = await axios.post(
+          `http://127.0.0.1:8000/api/ai/${selectedAI.value.id}`,
+          {
+            prompt: questionToProcess,
+            lang: currentLang.value,
+          }
         );
+
         messages.value.push({
           id: messageId.value++,
           type: 'ai',
-          content: aiResponse,
+          content: response.data.response,
           timestamp: new Date(),
         });
-        isTyping.value = false;
-        scrollToBottom();
-      }, 800 + Math.random() * 1200);
-    };
+      } catch (error) {
+        console.error('API error:', error);
+        messages.value.push({
+          id: messageId.value++,
+          type: 'ai',
+          content: '❌ Xatolik yuz berdi. Qayta urinib ko‘ring.',
+          timestamp: new Date(),
+        });
+      }
 
-    const generateAdvancedResponse = (question, ai) => {
-      return {
-        uz: `**${ai.name.uz}** sifatida professional yordam:\n\n🎯 **Sizning savolingiz:** "${question}"\n\n🔍 **Professional tahlil:** Bu soha bo'yicha chuqur bilimlarim bor va eng yaxshi yechimlarni taklif qilaman.\n\n💡 **Tavsiyalar:**\n• Batafsil o'rganish\n• Amaliy qo'llash\n• Professional yondashuv\n\nQo'shimcha savollar bering!`,
-        en: `**${ai.name.en}** professional assistance:\n\n🎯 **Your question:** "${question}"\n\n🔍 **Professional analysis:** I have deep knowledge in this field and offer the best solutions.\n\n💡 **Recommendations:**\n• Detailed study\n• Practical application\n• Professional approach\n\nAsk additional questions!`,
-        ru: `**${ai.name.ru}** профессиональная помощь:\n\n🎯 **Ваш вопрос:** "${question}"\n\n🔍 **Профессиональный анализ:** У меня глубокие знания в этой области и я предлагаю лучшие решения.\n\n💡 **Рекомендации:**\n• Подробное изучение\n• Практическое применение\n• Профессиональный подход\n\nЗадавайте дополнительные вопросы!`,
-        ar: `**${ai.name.ar}** مساعدة مهنية:\n\n🎯 **سؤالك:** "${question}"\n\n🔍 **تحليل مهني:** لدي معرفة عميقة في هذا المجال وأقدم أفضل الحلول.\n\n💡 **التوصيات:**\n• دراسة مفصلة\n• تطبيق عملي\n• نهج مهني\n\nاطرح أسئلة إضافية!`,
-      }[currentLang.value];
+      isTyping.value = false;
+      scrollToBottom();
     };
 
     const formatMessage = (content) => {
@@ -1234,6 +1241,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 /* CSS Variables */
