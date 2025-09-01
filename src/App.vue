@@ -449,18 +449,6 @@
                   class="message-content"
                   v-html="formatMessage(message.content)"
                 ></div>
-                <div v-if="message.type === 'ai'" class="ai-copy-buttons">
-    <button @click="copyAIText(message.content)" class="copy-btn">
-      📋 Copy javob
-    </button>
-    <button 
-      v-if="message.content.includes('```')" 
-      @click="copyCodeOnly(message.content)" 
-      class="copy-btn"
-    >
-      💾 Copy kod
-    </button>
-  </div>
                 <div class="message-time">
                   {{ formatTime(message.timestamp) }}
                 </div>
@@ -496,7 +484,6 @@
 <textarea
   v-model="currentMessage"
   @keypress.enter.prevent="!$event.shiftKey && sendMessage()"
-  @keydown="handleShiftEnter"
   @input="adjustTextareaHeight"
   :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
   class="chat-input"
@@ -536,10 +523,6 @@
       <button @click="hideNotification">✕</button>
     </div>
   </div>
-
-  <div v-if="copyNotification.show" class="copy-success">
-  {{ copyNotification.message }}
-</div>
 </template>
 
 <script>
@@ -1475,48 +1458,6 @@ export default {
       }
     };
 
-const handleShiftEnter = (event) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    if (currentMessage.value.trim()) {
-      sendMessage();
-    }
-  }
-};
-
-const copyNotification = reactive({
-  show: false,
-  message: ''
-});
-
-const copyAIText = async (content) => {
-  try {
-    const textOnly = content.replace(/```[\s\S]*?```/g, '').trim();
-    await navigator.clipboard.writeText(textOnly);
-    showCopyMsg('Javob copy qilindi!');
-  } catch (error) {
-    showCopyMsg('Copy xatolik!');
-  }
-};
-
-const copyCodeOnly = async (content) => {
-  try {
-    const codeMatch = content.match(/```[\s\S]*?```/g);
-    if (codeMatch) {
-      const code = codeMatch.map(c => c.replace(/```[\w]*\n?/g, '').replace(/```/g, '')).join('\n');
-      await navigator.clipboard.writeText(code);
-      showCopyMsg('Kod copy qilindi!');
-    }
-  } catch (error) {
-    showCopyMsg('Kod copy xatolik!');
-  }
-};
-
-const showCopyMsg = (msg) => {
-  copyNotification.message = msg;
-  copyNotification.show = true;
-  setTimeout(() => copyNotification.show = false, 2000);
-};
 
    // HATO 2: Credential Response Handler - to'liq xavfsiz
     const handleCredentialResponse = async (response) => {
@@ -3281,9 +3222,6 @@ const formatTime = (timestamp) => {
       debugChatData,
       updateStats,
       handleKeyPress,
-      handleShiftEnter,
-  copyAIText,
-  copyCodeOnly,
     };
   },
 };
@@ -5149,36 +5087,4 @@ body::-webkit-scrollbar-thumb:hover {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact; /* Standart nomi (modern brauzerlar uchun) */
 }
-
-.ai-copy-buttons {
-  margin: 8px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.copy-btn {
-  padding: 4px 8px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.copy-btn:hover {
-  background: #218838;
-}
-
-.copy-success {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #28a745;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  z-index: 1000;
-}
-
 </style>
