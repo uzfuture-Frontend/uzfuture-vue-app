@@ -491,6 +491,83 @@
   ref="chatInput"
 ></textarea>
 
+<!-- TEMPLATE NAMUNASI -->
+<div id="demo-container">
+    <!-- 1. Copy Notification -->
+    <div 
+        class="copy-notification" 
+        :class="{ show: copyNotification.show, [copyNotification.type]: true }"
+        v-if="copyNotification.show"
+    >
+        {{ copyNotification.message }}
+    </div>
+
+    <!-- 2. Message Container with Copy Button -->
+    <div class="message-container" v-for="message in messages" :key="message.id">
+        <!-- AI/User message copy button -->
+        <button 
+            class="message-copy-btn"
+            @click="copyToClipboard(message.content, 'text')"
+            :title="t.copyMessage || 'Copy message'"
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        </button>
+        
+        <!-- Message content -->
+        <div 
+            class="message-content" 
+            v-html="formatMessageWithCopyButton(message.content, message.id)"
+        ></div>
+        
+        <div class="message-time">
+            {{ formatTime(message.timestamp) }}
+        </div>
+    </div>
+
+    <!-- 3. Typing Indicator -->
+    <div class="typing-indicator" v-if="isTyping">
+        <span>AI javob yozmoqda</span>
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    </div>
+
+    <!-- 4. Input Container -->
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea
+                ref="chatInput"
+                v-model="currentMessage"
+                @keydown="handleKeyPress"
+                @input="autoResizeTextarea"
+                class="chat-input"
+                :placeholder="t.chat?.placeholder || 'Type your message...'"
+                :disabled="isTyping"
+                rows="1"
+            ></textarea>
+            <div class="input-hint">
+                {{ t.shiftEnterHint || 'Shift+Enter for new line' }}
+            </div>
+        </div>
+        
+        <button 
+            class="send-button"
+            @click="sendMessage"
+            :disabled="!currentMessage.trim() || isTyping"
+        >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+            </svg>
+        </button>
+    </div>
+</div>
+
 <button
   @click="sendMessage"
   :disabled="!currentMessage.trim()"
@@ -1937,6 +2014,83 @@ const handleKeyPress = (event) => {
   }
 };
 
+// Copy notification
+const copyNotification = reactive({
+  show: false,
+  message: '',
+  type: 'success'
+});
+
+// Copy text funksiyasi
+const copyToClipboard = async (text, type = 'text') => {
+  try {
+    await navigator.clipboard.writeText(text);
+    
+    const messages = {
+      text: {
+        uz: 'Matn nusxalandi!',
+        en: 'Text copied!',
+        ru: 'Текст скопирован!',
+        ar: 'تم نسخ النص!'
+      },
+      code: {
+        uz: 'Kod nusxalandi!',
+        en: 'Code copied!',
+        ru: 'Код скопирован!',
+        ar: 'تم نسخ الكود!'
+      }
+    };
+    
+    showCopyNotification(messages[type][currentLang.value] || messages[type].uz);
+  } catch (error) {
+    console.error('Copy failed:', error);
+    showCopyNotification('Nusxalashda xatolik!', 'error');
+  }
+};
+
+// Copy notification ko'rsatish
+const showCopyNotification = (message, type = 'success') => {
+  copyNotification.message = message;
+  copyNotification.type = type;
+  copyNotification.show = true;
+  
+  setTimeout(() => {
+    copyNotification.show = false;
+  }, 2000);
+};
+
+// Kod bloklarini ajratib olish
+const extractCodeBlocks = (content) => {
+  const codeBlocks = [];
+  const patterns = [
+    // Markdown code blocks
+    /```[\s\S]*?```/g,
+    // Inline code
+    /`[^`]+`/g,
+    // HTML-like tags
+    /<code>[\s\S]*?<\/code>/g
+  ];
+  
+  patterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      codeBlocks.push(...matches);
+    }
+  });
+  
+  return codeBlocks;
+};
+
+// Kod formatini tozalash
+const cleanCodeContent = (codeText) => {
+  return codeText
+    .replace(/```[\w]*\n?/g, '') // Markdown tilini olib tashlash
+    .replace(/```/g, '') // Qolgan ```
+    .replace(/<\/?code>/g, '') // HTML code taglarini olib tashlash
+    .replace(/^`|`$/g, '') // Inline code backtick'larini olib tashlash
+    .trim();
+};
+
     // 1. sendMessage funksiyasini to'liq almashtiring:
 // YAXSHILANGAN sendMessage funksiyasi - input blocking muammosini hal qiladi
 const sendMessage = async () => {
@@ -2938,6 +3092,56 @@ const validateMessage = (message) => {
   );
 };
 
+const formatMessageWithCopyButton = (content, messageId) => {
+  if (!content) return '';
+  
+  let formattedContent = content
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Kod bloklarini topish va copy button qo'shish
+  const codeBlocks = extractCodeBlocks(content);
+  
+  if (codeBlocks.length > 0) {
+    codeBlocks.forEach((codeBlock, index) => {
+      const cleanCode = cleanCodeContent(codeBlock);
+      const codeId = `code-${messageId}-${index}`;
+      
+      const codeWithButton = `
+        <div class="code-block-container">
+          <div class="code-block-header">
+            <span class="code-label">Kod</span>
+            <button 
+              class="copy-code-btn" 
+              onclick="copyCodeBlock('${codeId}')"
+              title="Kodni nusxalash"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <pre><code id="${codeId}">${cleanCode}</code></pre>
+        </div>
+      `;
+      
+      formattedContent = formattedContent.replace(codeBlock, codeWithButton);
+    });
+  }
+  
+  return formattedContent;
+};
+
+// Global funksiya kod bloklarini copy qilish uchun
+window.copyCodeBlock = (codeId) => {
+  const codeElement = document.getElementById(codeId);
+  if (codeElement) {
+    copyToClipboard(codeElement.textContent, 'code');
+  }
+};
+
 // 4. AUTO-SAVE TIZIMI - har 10 soniyada saqlash
 const setupAutoSave = () => {
   // Eski interval'ni tozalash
@@ -3222,6 +3426,12 @@ const formatTime = (timestamp) => {
       debugChatData,
       updateStats,
       handleKeyPress,
+      copyToClipboard,
+      copyNotification,
+      showCopyNotification,
+      extractCodeBlocks,
+      cleanCodeContent,
+      formatMessageWithCopyButton,
     };
   },
 };
@@ -5087,4 +5297,356 @@ body::-webkit-scrollbar-thumb:hover {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact; /* Standart nomi (modern brauzerlar uchun) */
 }
+
+.copy-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .copy-notification.show {
+            transform: translateX(0);
+        }
+
+        .copy-notification.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .copy-notification.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        /* 2. MESSAGE CONTAINER COPY BUTTON */
+        .message-container {
+            position: relative;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            padding: 16px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+        }
+
+        .dark .message-container {
+            background: rgba(45, 55, 72, 0.9);
+            color: white;
+        }
+
+        .message-container:hover .message-copy-btn {
+            opacity: 1;
+        }
+
+        .message-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dark .message-copy-btn {
+            background: rgba(74, 85, 104, 0.9);
+            border-color: #4a5568;
+            color: white;
+        }
+
+        .message-copy-btn:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+
+        .dark .message-copy-btn:hover {
+            background: #4a5568;
+            border-color: #718096;
+        }
+
+        /* 3. CODE BLOCK STYLES */
+        .code-block-container {
+            position: relative;
+            margin: 16px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+
+        .dark .code-block-container {
+            background: #2d3748;
+            border-color: #4a5568;
+        }
+
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .dark .code-block-header {
+            background: #4a5568;
+            border-color: #718096;
+        }
+
+        .code-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .dark .code-label {
+            color: #a0aec0;
+        }
+
+        .copy-code-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            transition: all 0.2s ease;
+        }
+
+        .dark .copy-code-btn {
+            color: #a0aec0;
+        }
+
+        .copy-code-btn:hover {
+            background: rgba(108, 117, 125, 0.1);
+            color: #495057;
+        }
+
+        .dark .copy-code-btn:hover {
+            background: rgba(160, 174, 192, 0.1);
+            color: #cbd5e0;
+        }
+
+        .code-block-container pre {
+            margin: 0;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background: transparent;
+        }
+
+        .code-block-container code {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-family: inherit;
+            color: #212529;
+        }
+
+        .dark .code-block-container code {
+            color: #e2e8f0;
+        }
+
+        /* 4. INPUT CONTAINER STYLES */
+        .input-container {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            padding: 20px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .dark .input-container {
+            background: rgba(45, 55, 72, 0.95);
+            border-color: rgba(74, 85, 104, 0.8);
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            min-height: 44px;
+            max-height: 150px;
+            padding: 12px 16px 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            line-height: 1.5;
+            resize: none;
+            overflow-y: hidden;
+            background: white;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .dark .chat-input {
+            background: #4a5568;
+            border-color: #718096;
+            color: white;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .chat-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .dark .chat-input::placeholder {
+            color: #a0aec0;
+        }
+
+        /* 5. INPUT HINT STYLES */
+        .input-hint {
+            position: absolute;
+            bottom: -24px;
+            left: 0;
+            font-size: 12px;
+            color: #6b7280;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .dark .input-hint {
+            color: #9ca3af;
+        }
+
+        .input-wrapper:focus-within .input-hint {
+            opacity: 1;
+        }
+
+        /* 6. SEND BUTTON STYLES */
+        .send-button {
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+            height: 44px;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 7. TYPING ANIMATION */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            color: #6b7280;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6b7280;
+            animation: typingDot 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typingDot {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* 8. MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            .copy-notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                right: auto;
+                transform: translateY(-100%);
+            }
+
+            .copy-notification.show {
+                transform: translateY(0);
+            }
+
+            .message-copy-btn {
+                opacity: 1;
+            }
+
+            .input-hint {
+                position: relative;
+                bottom: auto;
+                margin-top: 4px;
+                opacity: 1;
+            }
+        }
+
+        /* 9. SCROLLBAR STYLES */
+        .chat-input::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-input::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-input::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 2px;
+        }
+
+        .dark .chat-input::-webkit-scrollbar-thumb {
+            background: #718096;
+        }
 </style>
