@@ -484,78 +484,12 @@
 <textarea
   v-model="currentMessage"
   @keypress.enter.prevent="!$event.shiftKey && sendMessage()"
-  @keydown="handleTextareaKeydown"
   @input="adjustTextareaHeight"
   :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
   class="chat-input"
   rows="1"
   ref="chatInput"
 ></textarea>
-
-<!-- MESSAGE CONTAINER'GA COPY BUTTON QO'SHISH -->
-<!-- Har bir xabar containerida shu tarzda o'zgartiring: -->
-
-<div 
-  v-for="message in messages" 
-  :key="message.id"
-  class="message-container group relative"
-  :class="message.type === 'user' ? 'user-message' : 'ai-message'"
->
-  <!-- Message content -->
-  <div class="message-content">
-    <div 
-      v-html="formatMessage(message.content)"
-      class="message-text"
-    ></div>
-    
-    <!-- Copy Button - YANGI QO'SHISH -->
-    <button
-      v-if="message.type === 'ai'"
-      @click="copyMessage(message)"
-      :class="getCopyButtonClass(message.type)"
-      title="Nusxa olish"
-    >
-      <!-- Copy Icon (SVG) -->
-      <svg 
-        width="16" 
-        height="16" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        stroke-width="2"
-      >
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-        <path d="m5 15-4-4V5a2 2 0 0 1 2-2h6l4 4"></path>
-      </svg>
-    </button>
-
-    <!-- Agar kod bor bo'lsa, alohida copy kod button -->
-    <button
-      v-if="message.type === 'ai' && detectCodeBlocks(message.content).hasCodeBlocks"
-      @click="copyCodeOnly(message)"
-      :class="getCopyButtonClass(message.type) + ' mr-10'"
-      title="Faqat kodlarni nusxa olish"
-    >
-      <!-- Code Icon -->
-      <svg 
-        width="16" 
-        height="16" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        stroke-width="2"
-      >
-        <polyline points="16,18 22,12 16,6"></polyline>
-        <polyline points="8,6 2,12 8,18"></polyline>
-      </svg>
-    </button>
-  </div>
-  
-  <!-- Message timestamp -->
-  <div class="message-time">
-    {{ formatTime(message.timestamp) }}
-  </div>
-</div>
 
 <button
   @click="sendMessage"
@@ -2003,100 +1937,6 @@ const handleKeyPress = (event) => {
   }
 };
 
-// COPY FUNKSIYASINI QO'SHISH - handleKeyPress funksiyasidan KEYIN qo'shing
-
-// 1. COPY FUNKSIYASI
-const copyToClipboard = async (text) => {
-  try {
-    // Modern browser API
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      showNotification('Nusxa olindi! 📋', 'success');
-    } else {
-      // Fallback eski browserlar uchun
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      return new Promise((resolve, reject) => {
-        document.execCommand('copy') ? resolve() : reject();
-        textArea.remove();
-      }).then(() => {
-        showNotification('Nusxa olindi! 📋', 'success');
-      });
-    }
-  } catch (error) {
-    console.error('Copy error:', error);
-    showNotification('Nusxa olishda xatolik yuz berdi', 'error');
-  }
-};
-
-// 2. CODE BLOCK DETECTOR - kod bloklarini aniqlash
-const detectCodeBlocks = (content) => {
-  // Markdown kod bloklarini aniqlash
-  const codeBlockRegex = /```[\s\S]*?```/g;
-  const inlineCodeRegex = /`[^`]+`/g;
-  
-  return {
-    hasCodeBlocks: codeBlockRegex.test(content),
-    hasInlineCode: inlineCodeRegex.test(content),
-    codeBlocks: content.match(codeBlockRegex) || [],
-    inlineCodes: content.match(inlineCodeRegex) || []
-  };
-};
-
-// 3. COPY BUTTON COMPONENT LOGIC
-const getCopyButtonClass = (messageType) => {
-  const baseClass = "copy-btn absolute top-2 right-2 p-2 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100";
-  
-  if (messageType === 'ai') {
-    return darkMode.value 
-      ? `${baseClass} bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white`
-      : `${baseClass} bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800`;
-  }
-  
-  return `${baseClass} bg-blue-100 hover:bg-blue-200 text-blue-600 hover:text-blue-800`;
-};
-
-// 4. EXTRACT CODE FROM MESSAGE - faqat kodlarni copy qilish
-const extractCodeFromMessage = (content) => {
-  const codeInfo = detectCodeBlocks(content);
-  
-  if (codeInfo.codeBlocks.length > 0) {
-    // Faqat kod bloklarini qaytarish
-    return codeInfo.codeBlocks
-      .map(block => block.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim())
-      .join('\n\n');
-  }
-  
-  if (codeInfo.inlineCodes.length > 0) {
-    // Inline kodlarni qaytarish
-    return codeInfo.inlineCodes
-      .map(code => code.replace(/`/g, ''))
-      .join(' ');
-  }
-  
-  // Kod bo'lmasa, to'liq matnni qaytarish
-  return content;
-};
-
-// 5. COPY ENTIRE MESSAGE
-const copyMessage = async (message) => {
-  const textToCopy = message.content.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '');
-  await copyToClipboard(textToCopy);
-};
-
-// 6. COPY ONLY CODE
-const copyCodeOnly = async (message) => {
-  const codeToCopy = extractCodeFromMessage(message.content);
-  await copyToClipboard(codeToCopy);
-};
-
     // 1. sendMessage funksiyasini to'liq almashtiring:
 // YAXSHILANGAN sendMessage funksiyasi - input blocking muammosini hal qiladi
 const sendMessage = async () => {
@@ -3382,12 +3222,6 @@ const formatTime = (timestamp) => {
       debugChatData,
       updateStats,
       handleKeyPress,
-      copyToClipboard,
-      copyMessage,
-      copyCodeOnly,
-      detectCodeBlocks,
-      getCopyButtonClass,
-      extractCodeFromMessage,
     };
   },
 };
@@ -5241,83 +5075,6 @@ body::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom right, #fef3f3, #ffe6e6); /* bu sening orqa fon rang dizayning */
   background-size: cover;
   background-repeat: no-repeat;
-}
-
-/* COPY BUTTON STILLARI - <style> qismiga qo'shing */
-
-.message-container {
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.message-container:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.copy-btn {
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(10px);
-  opacity: 0;
-  transform: translateY(-2px);
-}
-
-.group:hover .copy-btn {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.copy-btn:hover {
-  transform: scale(1.1);
-}
-
-.copy-btn:active {
-  transform: scale(0.95);
-}
-
-/* Dark mode uchun */
-.theme-dark-universal .copy-btn {
-  background-color: rgba(55, 65, 81, 0.8);
-  color: #D1D5DB;
-  border: 1px solid rgba(75, 85, 99, 0.3);
-}
-
-.theme-dark-universal .copy-btn:hover {
-  background-color: rgba(75, 85, 99, 0.9);
-  color: #F9FAFB;
-}
-
-/* Light mode uchun */
-.copy-btn:not(.theme-dark-universal) {
-  background-color: rgba(243, 244, 246, 0.9);
-  color: #374151;
-  border: 1px solid rgba(209, 213, 219, 0.3);
-}
-
-.copy-btn:not(.theme-dark-universal):hover {
-  background-color: rgba(229, 231, 235, 1);
-  color: #111827;
-}
-
-/* Animation */
-@keyframes copySuccess {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.copy-btn.copied {
-  animation: copySuccess 0.3s ease;
-  background-color: #10B981 !important;
-  color: white !important;
 }
 
 /* Bu sahifalarga beriladi */
