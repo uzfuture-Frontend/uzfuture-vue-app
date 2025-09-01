@@ -2038,7 +2038,41 @@ const copyToClipboard = async (text, type = 'text') => {
   }
 };
 
-// Copy notification ko'rsatish
+const hasCodeBlock = (content) => {
+  if (!content) return false;
+  return content.includes('```') || 
+         content.includes('<code>') || 
+         content.includes('`');
+};
+
+// 6. Kodlarni ajratib olish
+const extractCodeFromMessage = (content) => {
+  const codes = [];
+  
+  // Markdown kod bloklarini topish
+  const markdownCodeRegex = /```[\w]*\n?([\s\S]*?)```/g;
+  let match;
+  
+  while ((match = markdownCodeRegex.exec(content)) !== null) {
+    codes.push(match[1].trim());
+  }
+  
+  // HTML kod bloklarini topish
+  const htmlCodeRegex = /<code>([\s\S]*?)<\/code>/g;
+  while ((match = htmlCodeRegex.exec(content)) !== null) {
+    codes.push(match[1].trim());
+  }
+  
+  // Inline kod bloklarini topish
+  const inlineCodeRegex = /`([^`]+)`/g;
+  while ((match = inlineCodeRegex.exec(content)) !== null) {
+    codes.push(match[1].trim());
+  }
+  
+  return codes;
+};
+
+// 7. Copy notification ko'rsatish
 const showCopyNotification = (message, type = 'success') => {
   copyNotification.message = message;
   copyNotification.type = type;
@@ -2047,38 +2081,6 @@ const showCopyNotification = (message, type = 'success') => {
   setTimeout(() => {
     copyNotification.show = false;
   }, 2000);
-};
-
-// Kod bloklarini ajratib olish
-const extractCodeBlocks = (content) => {
-  const codeBlocks = [];
-  const patterns = [
-    // Markdown code blocks
-    /```[\s\S]*?```/g,
-    // Inline code
-    /`[^`]+`/g,
-    // HTML-like tags
-    /<code>[\s\S]*?<\/code>/g
-  ];
-  
-  patterns.forEach(pattern => {
-    const matches = content.match(pattern);
-    if (matches) {
-      codeBlocks.push(...matches);
-    }
-  });
-  
-  return codeBlocks;
-};
-
-// Kod formatini tozalash
-const cleanCodeContent = (codeText) => {
-  return codeText
-    .replace(/```[\w]*\n?/g, '') // Markdown tilini olib tashlash
-    .replace(/```/g, '') // Qolgan ```
-    .replace(/<\/?code>/g, '') // HTML code taglarini olib tashlash
-    .replace(/^`|`$/g, '') // Inline code backtick'larini olib tashlash
-    .trim();
 };
 
     // 1. sendMessage funksiyasini to'liq almashtiring:
@@ -3370,6 +3372,8 @@ const formatTime = (timestamp) => {
   adjustTextareaHeight,
   copyAIResponse,
   copyCodeOnly,
+  hasCodeBlock,
+
     };
   },
 };
@@ -5234,5 +5238,115 @@ body::-webkit-scrollbar-thumb:hover {
   background-color: transparent; /* Orqa fon parentdan oladi */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact; /* Standart nomi (modern brauzerlar uchun) */
+}
+
+/* Copy tugmalari uchun styles */
+.ai-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.copy-btn, .copy-code-btn {
+  padding: 4px 8px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.copy-btn:hover, .copy-code-btn:hover {
+  background: #218838;
+}
+
+.copy-code-btn {
+  background: #007bff;
+}
+
+.copy-code-btn:hover {
+  background: #0056b3;
+}
+
+/* Copy notification styles */
+.copy-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #28a745;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 6px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideInRight 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.copy-notification.error {
+  background: #dc3545;
+}
+
+.copy-notification.warning {
+  background: #ffc107;
+  color: #000;
+}
+
+.copy-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Chat input yangilanish */
+.chat-input {
+  width: 100%;
+  max-width: calc(100% - 60px);
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.4;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .copy-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    text-align: center;
+  }
+  
+  .ai-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>
