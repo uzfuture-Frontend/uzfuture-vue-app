@@ -430,45 +430,34 @@
       </div>
 
       <!-- Chat Messages -->
-      <div
-  v-for="message in messages"
-  :key="message.id"
-  :class="['message-wrapper', message.type]"
->
-  <div class="message-avatar">
-    <span v-if="message.type === 'user'">
-      <img :src="user.picture" :alt="user.name" class="message-user-avatar">
-    </span>
-    <span v-else>{{ selectedAI.emoji }}</span>
-  </div>
-  <div class="message-bubble">
-    <div class="message-content" v-html="formatMessage(message.content)"></div>
-    
-    <!-- COPY TUGMALARI - YANGI QISM -->
-    <div v-if="message.type === 'ai'" class="message-actions ai-actions">
-      <button @click="copyAIResponse(message.content)" class="copy-btn" title="Javobni copy qilish">
-        📋 Copy javob
-      </button>
-      <button 
-        v-if="hasCodeBlock(message.content)" 
-        @click="copyCodeOnly(message.content)" 
-        class="copy-code-btn" 
-        title="Faqat kodni copy qilish"
-      >
-        💾 Copy kod
-      </button>
-    </div>
-    
-    <div class="message-time">
-      {{ formatTime(message.timestamp) }}
-    </div>
-    
-    <div v-if="message.type === 'user'" class="message-actions">
-      <button @click="editMessage(message)" class="edit-btn">✏️</button>
-      <button @click="deleteMessage(message.id)" class="delete-btn">🗑️</button>
-    </div>
-  </div>
-</div>
+      <div class="chat-body">
+        <div class="container">
+          <div class="messages-container" ref="messagesContainer">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="['message-wrapper', message.type]"
+            >
+              <div class="message-avatar">
+                <span v-if="message.type === 'user'">
+                  <img :src="user.picture" :alt="user.name" class="message-user-avatar">
+                </span>
+                <span v-else>{{ selectedAI.emoji }}</span>
+              </div>
+              <div class="message-bubble">
+                <div
+                  class="message-content"
+                  v-html="formatMessage(message.content)"
+                ></div>
+                <div class="message-time">
+                  {{ formatTime(message.timestamp) }}
+                </div>
+                <div v-if="message.type === 'user'" class="message-actions">
+                  <button @click="editMessage(message)" class="edit-btn">✏️</button>
+                  <button @click="deleteMessage(message.id)" class="delete-btn">🗑️</button>
+                </div>
+              </div>
+            </div>
 
             <!-- Typing Indicator -->
             <div v-if="isTyping" class="message-wrapper ai">
@@ -485,35 +474,31 @@
             </div>
           </div>
         </div>
+      </div>
 
       <!-- Chat Input -->
       <div class="chat-footer">
-  <div class="container">
-    <div class="input-wrapper">
+        <div class="container">
+          <div class="input-wrapper">
             <!-- TO'G'RILANGAN INPUT VA BUTTON -->
-        <textarea
-        v-model="currentMessage"
-        @keydown="handleShiftEnter"
-        @input="adjustTextareaHeight"
-        :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
-        class="chat-input"
-        rows="1"
-        ref="chatInput"
-      ></textarea>
+<textarea
+  v-model="currentMessage"
+  @keypress.enter.prevent="!$event.shiftKey && sendMessage()"
+  @input="adjustTextareaHeight"
+  :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
+  class="chat-input"
+  rows="1"
+  ref="chatInput"
+></textarea>
 
 <button
-        @click="sendMessage"
-        :disabled="!currentMessage.trim()"
-        class="send-button"
-      >
-        <span v-if="!isTyping">🚀</span>
-        <span v-else class="loading">⏳</span>
-      </button>
-
-      <div v-if="copyNotification.show" class="copy-notification" :class="copyNotification.type">
-  <span class="copy-message">{{ copyNotification.message }}</span>
-  <button @click="copyNotification.show = false" class="copy-close">✕</button>
-</div>
+  @click="sendMessage"
+  :disabled="!currentMessage.trim()"
+  class="send-button"
+>
+  <span v-if="!isTyping">🚀</span>
+  <span v-else class="loading">⏳</span>
+</button>
 
 <!-- TYPING INDIKATORINI ALOHIDA JOYDA KO'RSATING -->
 <div v-if="isTyping" class="typing-indicator">
@@ -522,6 +507,7 @@
           </div>
         </div>
       </div>
+    </div>
 
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
@@ -536,6 +522,7 @@
       <span>{{ notification.message }}</span>
       <button @click="hideNotification">✕</button>
     </div>
+  </div>
 </template>
 
 <script>
@@ -1471,60 +1458,6 @@ export default {
       }
     };
 
-const handleShiftEnter = (event) => {
-  if (event.key === 'Enter') {
-    if (event.shiftKey) {
-      // Shift+Enter: yangi qator qo'shish (default harakatni davom ettirish)
-      return true;
-    } else {
-      // Faqat Enter: xabar yuborish
-      event.preventDefault();
-      if (currentMessage.value.trim()) {
-        sendMessage();
-      }
-    }
-  }
-};
-
-const adjustTextareaHeight = () => {
-  if (chatInput.value) {
-    chatInput.value.style.height = 'auto';
-    chatInput.value.style.height = Math.min(chatInput.value.scrollHeight, 150) + 'px';
-  }
-};
-
-const copyAIResponse = async (content) => {
-  try {
-    // Kod bloklarini olib tashlab, faqat matnni copy qilish
-    const textOnly = content
-      .replace(/```[\s\S]*?```/g, '') // Markdown kod bloklarini olib tashlash
-      .replace(/<code>[\s\S]*?<\/code>/g, '') // HTML kod bloklarini olib tashlash
-      .replace(/`[^`]+`/g, '') // Inline code'ni olib tashlash
-      .trim();
-    
-    await navigator.clipboard.writeText(textOnly);
-    showCopyNotification('Javob copy qilindi!');
-  } catch (error) {
-    console.error('Copy failed:', error);
-    showCopyNotification('Copy qilishda xatolik!', 'error');
-  }
-};
-
-const copyCodeOnly = async (content) => {
-  try {
-    const codeBlocks = extractCodeFromMessage(content);
-    if (codeBlocks.length > 0) {
-      const allCode = codeBlocks.join('\n\n');
-      await navigator.clipboard.writeText(allCode);
-      showCopyNotification('Kod copy qilindi!');
-    } else {
-      showCopyNotification('Kod topilmadi!', 'warning');
-    }
-  } catch (error) {
-    console.error('Code copy failed:', error);
-    showCopyNotification('Kod copy qilishda xatolik!', 'error');
-  }
-};
 
    // HATO 2: Credential Response Handler - to'liq xavfsiz
     const handleCredentialResponse = async (response) => {
@@ -2002,85 +1935,6 @@ const handleKeyPress = (event) => {
       }
     }
   }
-};
-
-// Copy notification
-const copyNotification = reactive({
-  show: false,
-  message: '',
-  type: 'success'
-});
-
-// Copy text funksiyasi
-const copyToClipboard = async (text, type = 'text') => {
-  try {
-    await navigator.clipboard.writeText(text);
-    
-    const messages = {
-      text: {
-        uz: 'Matn nusxalandi!',
-        en: 'Text copied!',
-        ru: 'Текст скопирован!',
-        ar: 'تم نسخ النص!'
-      },
-      code: {
-        uz: 'Kod nusxalandi!',
-        en: 'Code copied!',
-        ru: 'Код скопирован!',
-        ar: 'تم نسخ الكود!'
-      }
-    };
-    
-    showCopyNotification(messages[type][currentLang.value] || messages[type].uz);
-  } catch (error) {
-    console.error('Copy failed:', error);
-    showCopyNotification('Nusxalashda xatolik!', 'error');
-  }
-};
-
-const hasCodeBlock = (content) => {
-  if (!content) return false;
-  return content.includes('```') || 
-         content.includes('<code>') || 
-         content.includes('`');
-};
-
-// 6. Kodlarni ajratib olish
-const extractCodeFromMessage = (content) => {
-  const codes = [];
-  
-  // Markdown kod bloklarini topish
-  const markdownCodeRegex = /```[\w]*\n?([\s\S]*?)```/g;
-  let match;
-  
-  while ((match = markdownCodeRegex.exec(content)) !== null) {
-    codes.push(match[1].trim());
-  }
-  
-  // HTML kod bloklarini topish
-  const htmlCodeRegex = /<code>([\s\S]*?)<\/code>/g;
-  while ((match = htmlCodeRegex.exec(content)) !== null) {
-    codes.push(match[1].trim());
-  }
-  
-  // Inline kod bloklarini topish
-  const inlineCodeRegex = /`([^`]+)`/g;
-  while ((match = inlineCodeRegex.exec(content)) !== null) {
-    codes.push(match[1].trim());
-  }
-  
-  return codes;
-};
-
-// 7. Copy notification ko'rsatish
-const showCopyNotification = (message, type = 'success') => {
-  copyNotification.message = message;
-  copyNotification.type = type;
-  copyNotification.show = true;
-  
-  setTimeout(() => {
-    copyNotification.show = false;
-  }, 2000);
 };
 
     // 1. sendMessage funksiyasini to'liq almashtiring:
@@ -3368,12 +3222,6 @@ const formatTime = (timestamp) => {
       debugChatData,
       updateStats,
       handleKeyPress,
-      handleShiftEnter,
-  adjustTextareaHeight,
-  copyAIResponse,
-  copyCodeOnly,
-  hasCodeBlock,
-
     };
   },
 };
@@ -5238,115 +5086,5 @@ body::-webkit-scrollbar-thumb:hover {
   background-color: transparent; /* Orqa fon parentdan oladi */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact; /* Standart nomi (modern brauzerlar uchun) */
-}
-
-/* Copy tugmalari uchun styles */
-.ai-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
-
-.copy-btn, .copy-code-btn {
-  padding: 4px 8px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.2s;
-}
-
-.copy-btn:hover, .copy-code-btn:hover {
-  background: #218838;
-}
-
-.copy-code-btn {
-  background: #007bff;
-}
-
-.copy-code-btn:hover {
-  background: #0056b3;
-}
-
-/* Copy notification styles */
-.copy-notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #28a745;
-  color: white;
-  padding: 12px 16px;
-  border-radius: 6px;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: slideInRight 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.copy-notification.error {
-  background: #dc3545;
-}
-
-.copy-notification.warning {
-  background: #ffc107;
-  color: #000;
-}
-
-.copy-close {
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* Chat input yangilanish */
-.chat-input {
-  width: 100%;
-  max-width: calc(100% - 60px);
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  resize: none;
-  overflow-y: auto;
-  line-height: 1.4;
-}
-
-.chat-input:focus {
-  outline: none;
-  border-color: #007bff;
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-  .copy-notification {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    text-align: center;
-  }
-  
-  .ai-actions {
-    flex-wrap: wrap;
-  }
 }
 </style>
