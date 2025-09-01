@@ -484,7 +484,8 @@
 <textarea
   v-model="currentMessage"
   @keypress.enter.prevent="!$event.shiftKey && sendMessage()"
-  :placeholder="t.chat.placeholder"
+  @input="adjustTextareaHeight"
+  :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
   class="chat-input"
   rows="1"
   ref="chatInput"
@@ -1908,6 +1909,34 @@ const loadUserData = async () => {
       return welcomes[currentLang.value];
     };
 
+    // SHIFT+ENTER MUAMMOSINI HAL QILISH
+const handleKeyPress = (event) => {
+  if (event.key === 'Enter') {
+    if (event.shiftKey) {
+      // Shift+Enter: yangi qator qo'shish
+      event.preventDefault();
+      const textarea = event.target;
+      const cursorPosition = textarea.selectionStart;
+      const textBefore = currentMessage.value.substring(0, cursorPosition);
+      const textAfter = currentMessage.value.substring(cursorPosition);
+      
+      currentMessage.value = textBefore + '\n' + textAfter;
+      
+      // Kursorni to'g'ri joyga qo'yish
+      nextTick(() => {
+        textarea.selectionStart = textarea.selectionEnd = cursorPosition + 1;
+        autoResizeTextarea();
+      });
+    } else {
+      // Faqat Enter: xabar yuborish
+      event.preventDefault();
+      if (currentMessage.value.trim()) {
+        sendMessage();
+      }
+    }
+  }
+};
+
     // 1. sendMessage funksiyasini to'liq almashtiring:
 // YAXSHILANGAN sendMessage funksiyasi - input blocking muammosini hal qiladi
 const sendMessage = async () => {
@@ -1953,7 +1982,9 @@ const sendMessage = async () => {
       {
         headers: { 'Content-Type': 'application/json' },
         responseType: 'text',
-        timeout: 30000
+        timeout: 120000, // 2 daqiqa (uzun xabarlar uchun)
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       }
     );
 
@@ -2480,7 +2511,9 @@ const editMessage = async (message) => {
       {
         headers: { 'Content-Type': 'application/json' },
         responseType: 'text',
-        timeout: 30000
+        timeout: 120000, // 2 daqiqa (uzun xabarlar uchun)
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       }
     );
 
@@ -3187,7 +3220,8 @@ const formatTime = (timestamp) => {
       validateChatData,
       validateMessage,
       debugChatData,
-      updateStats
+      updateStats,
+      handleKeyPress,
     };
   },
 };

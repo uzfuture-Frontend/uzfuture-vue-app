@@ -3,13 +3,12 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/',
+  base: '/',  
   server: {
     port: 5173,
     host: 'localhost',
     cors: true,
     strictPort: true,
-    // Faqat development'da proxy ishlatish
     proxy: process.env.NODE_ENV === 'development' ? {
       '/api': {
         target: 'https://ai-backend-fy7t.onrender.com',
