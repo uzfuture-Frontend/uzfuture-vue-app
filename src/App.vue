@@ -430,34 +430,45 @@
       </div>
 
       <!-- Chat Messages -->
-      <div class="chat-body">
-        <div class="container">
-          <div class="messages-container" ref="messagesContainer">
-            <div
-              v-for="message in messages"
-              :key="message.id"
-              :class="['message-wrapper', message.type]"
-            >
-              <div class="message-avatar">
-                <span v-if="message.type === 'user'">
-                  <img :src="user.picture" :alt="user.name" class="message-user-avatar">
-                </span>
-                <span v-else>{{ selectedAI.emoji }}</span>
-              </div>
-              <div class="message-bubble">
-                <div
-                  class="message-content"
-                  v-html="formatMessage(message.content)"
-                ></div>
-                <div class="message-time">
-                  {{ formatTime(message.timestamp) }}
-                </div>
-                <div v-if="message.type === 'user'" class="message-actions">
-                  <button @click="editMessage(message)" class="edit-btn">✏️</button>
-                  <button @click="deleteMessage(message.id)" class="delete-btn">🗑️</button>
-                </div>
-              </div>
-            </div>
+      <div
+  v-for="message in messages"
+  :key="message.id"
+  :class="['message-wrapper', message.type]"
+>
+  <div class="message-avatar">
+    <span v-if="message.type === 'user'">
+      <img :src="user.picture" :alt="user.name" class="message-user-avatar">
+    </span>
+    <span v-else>{{ selectedAI.emoji }}</span>
+  </div>
+  <div class="message-bubble">
+    <div class="message-content" v-html="formatMessage(message.content)"></div>
+    
+    <!-- COPY TUGMALARI - YANGI QISM -->
+    <div v-if="message.type === 'ai'" class="message-actions ai-actions">
+      <button @click="copyAIResponse(message.content)" class="copy-btn" title="Javobni copy qilish">
+        📋 Copy javob
+      </button>
+      <button 
+        v-if="hasCodeBlock(message.content)" 
+        @click="copyCodeOnly(message.content)" 
+        class="copy-code-btn" 
+        title="Faqat kodni copy qilish"
+      >
+        💾 Copy kod
+      </button>
+    </div>
+    
+    <div class="message-time">
+      {{ formatTime(message.timestamp) }}
+    </div>
+    
+    <div v-if="message.type === 'user'" class="message-actions">
+      <button @click="editMessage(message)" class="edit-btn">✏️</button>
+      <button @click="deleteMessage(message.id)" class="delete-btn">🗑️</button>
+    </div>
+  </div>
+</div>
 
             <!-- Typing Indicator -->
             <div v-if="isTyping" class="message-wrapper ai">
@@ -474,31 +485,35 @@
             </div>
           </div>
         </div>
-      </div>
 
       <!-- Chat Input -->
       <div class="chat-footer">
-        <div class="container">
-          <div class="input-wrapper">
+  <div class="container">
+    <div class="input-wrapper">
             <!-- TO'G'RILANGAN INPUT VA BUTTON -->
-<textarea
-  v-model="currentMessage"
-  @keypress.enter.prevent="!$event.shiftKey && sendMessage()"
-  @input="adjustTextareaHeight"
-  :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
-  class="chat-input"
-  rows="1"
-  ref="chatInput"
-></textarea>
+        <textarea
+        v-model="currentMessage"
+        @keydown="handleShiftEnter"
+        @input="adjustTextareaHeight"
+        :placeholder="t.chat.placeholder + ' (Shift+Enter - yangi qator)'"
+        class="chat-input"
+        rows="1"
+        ref="chatInput"
+      ></textarea>
 
 <button
-  @click="sendMessage"
-  :disabled="!currentMessage.trim()"
-  class="send-button"
->
-  <span v-if="!isTyping">🚀</span>
-  <span v-else class="loading">⏳</span>
-</button>
+        @click="sendMessage"
+        :disabled="!currentMessage.trim()"
+        class="send-button"
+      >
+        <span v-if="!isTyping">🚀</span>
+        <span v-else class="loading">⏳</span>
+      </button>
+
+      <div v-if="copyNotification.show" class="copy-notification" :class="copyNotification.type">
+  <span class="copy-message">{{ copyNotification.message }}</span>
+  <button @click="copyNotification.show = false" class="copy-close">✕</button>
+</div>
 
 <!-- TYPING INDIKATORINI ALOHIDA JOYDA KO'RSATING -->
 <div v-if="isTyping" class="typing-indicator">
@@ -507,7 +522,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
@@ -522,7 +536,6 @@
       <span>{{ notification.message }}</span>
       <button @click="hideNotification">✕</button>
     </div>
-  </div>
 </template>
 
 <script>
@@ -1458,6 +1471,60 @@ export default {
       }
     };
 
+const handleShiftEnter = (event) => {
+  if (event.key === 'Enter') {
+    if (event.shiftKey) {
+      // Shift+Enter: yangi qator qo'shish (default harakatni davom ettirish)
+      return true;
+    } else {
+      // Faqat Enter: xabar yuborish
+      event.preventDefault();
+      if (currentMessage.value.trim()) {
+        sendMessage();
+      }
+    }
+  }
+};
+
+const adjustTextareaHeight = () => {
+  if (chatInput.value) {
+    chatInput.value.style.height = 'auto';
+    chatInput.value.style.height = Math.min(chatInput.value.scrollHeight, 150) + 'px';
+  }
+};
+
+const copyAIResponse = async (content) => {
+  try {
+    // Kod bloklarini olib tashlab, faqat matnni copy qilish
+    const textOnly = content
+      .replace(/```[\s\S]*?```/g, '') // Markdown kod bloklarini olib tashlash
+      .replace(/<code>[\s\S]*?<\/code>/g, '') // HTML kod bloklarini olib tashlash
+      .replace(/`[^`]+`/g, '') // Inline code'ni olib tashlash
+      .trim();
+    
+    await navigator.clipboard.writeText(textOnly);
+    showCopyNotification('Javob copy qilindi!');
+  } catch (error) {
+    console.error('Copy failed:', error);
+    showCopyNotification('Copy qilishda xatolik!', 'error');
+  }
+};
+
+const copyCodeOnly = async (content) => {
+  try {
+    const codeBlocks = extractCodeFromMessage(content);
+    if (codeBlocks.length > 0) {
+      const allCode = codeBlocks.join('\n\n');
+      await navigator.clipboard.writeText(allCode);
+      showCopyNotification('Kod copy qilindi!');
+    } else {
+      showCopyNotification('Kod topilmadi!', 'warning');
+    }
+  } catch (error) {
+    console.error('Code copy failed:', error);
+    showCopyNotification('Kod copy qilishda xatolik!', 'error');
+  }
+};
 
    // HATO 2: Credential Response Handler - to'liq xavfsiz
     const handleCredentialResponse = async (response) => {
@@ -3299,6 +3366,10 @@ const formatTime = (timestamp) => {
       debugChatData,
       updateStats,
       handleKeyPress,
+      handleShiftEnter,
+  adjustTextareaHeight,
+  copyAIResponse,
+  copyCodeOnly,
     };
   },
 };
